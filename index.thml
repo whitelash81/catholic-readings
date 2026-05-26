@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; padding: 1rem; background: transparent; }
+  .cr-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .cr-date { font-size: 13px; color: #666; }
+  .cr-season { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 8px; background: #f1f1f1; color: #555; border: 1px solid #ddd; }
+  .cr-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 12px; }
+  .cr-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 4px; }
+  .cr-text { font-size: 15px; color: #111; }
+  .cr-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #1a6bbf; margin-top: 1rem; text-decoration: none; }
+  .cr-error { font-size: 14px; color: #c0392b; padding: 1rem; text-align: center; }
+  .cr-loading { font-size: 14px; color: #888; padding: 1rem; text-align: center; }
+</style>
+</head>
+<body>
+<div id="cr-content" class="cr-loading">Loading today's readings...</div>
+<script>
+var el = document.getElementById('cr-content');
+var now = new Date();
+var year = now.getFullYear();
+var mm = String(now.getMonth() + 1).padStart(2, '0');
+var dd = String(now.getDate()).padStart(2, '0');
+var dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+var readingsURL = 'https://cpbjr.github.io/catholic-readings-api/readings/' + year + '/' + mm + '-' + dd + '.json';
+var calURL = 'https://cpbjr.github.io/catholic-readings-api/liturgical-calendar/' + year + '/' + mm + '-' + dd + '.json';
+
+Promise.all([fetch(readingsURL).then(function(r){ return r.json(); }), fetch(calURL).then(function(r){ return r.json(); })])
+  .then(function(results) {
+    var readings = results[0];
+    var cal = results[1];
+    var r = readings.readings || {};
+    var celebration = cal.celebration || null;
+
+    var html = '<div class="cr-header"><span class="cr-date">' + dateLabel + '</span><span class="cr-season">' + (readings.season || '') + '</span></div>';
+
+    if (celebration && celebration.name) {
+      html += '<div class="cr-card" style="border-left: 3px solid #7F77DD;">';
+      html += '<div class="cr-label">Celebration</div>';
+      html += '<div class="cr-text" style="font-weight:500;">' + celebration.name + '</div>';
+      if (celebration.type) html += '<div style="font-size:12px; color:#888; margin-top:4px;">' + celebration.type + '</div>';
+      if (celebration.quote) html += '<div style="font-size:13px; font-style:italic; color:#888; margin-top:8px;">"' + celebration.quote + '"</div>';
+      html += '</div>';
+    }
+
+    var sections = [
+      { label: 'First Reading', val: r.firstReading },
+      { label: 'Psalm', val: r.psalm },
+      { label: 'Second Reading', val: r.secondReading },
+      { label: 'Gospel', val: r.gospel }
+    ];
+
+    sections.forEach(function(s) {
+      if (s.val) {
+        html += '<div class="cr-card"><div class="cr-label">' + s.label + '</div><div class="cr-text">' + s.val + '</div></div>';
+      }
+    });
+
+    if (readings.usccbLink) {
+      html += '<a class="cr-link" href="' + readings.usccbLink + '" target="_blank">Read full text on USCCB ↗</a>';
+    }
+
+    el.innerHTML = html;
+  })
+  .catch(function() {
+    el.innerHTML = '<div class="cr-error">Could not load today\'s readings. Please check your connection.</div>';
+  });
+</script>
+</body>
+</html>
